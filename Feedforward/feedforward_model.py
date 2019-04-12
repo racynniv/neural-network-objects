@@ -78,6 +78,7 @@ class feedforward(object):
         else:
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
                                        labels=self.targets,logits=self.output))
+            self.pred = tf.argmax(input=self.output,axis=1)
 
     # Minimizes the loss using an Adam optimizer
     def __optimizer(self):
@@ -117,7 +118,7 @@ class feedforward(object):
             if pre_trained_model != None:
                 try:
                     print("Loading model from: {}".format(pre_trained_model))
-                    saver.restore(sess,'model/{}'.format(pre_trained_model))
+                    self.saver.restore(sess,'model/{}'.format(pre_trained_model))
                 except Exception:
                     raise ValueError("Failed Loading Model")
 
@@ -140,9 +141,8 @@ class feedforward(object):
 
                     # After 25 iterations, check if test accuracy has increased
                     if iter_tot % 25 == 0:
-                        outputs = sess.run([self.output],feed_dict={self.inputs:
+                        pred = sess.run([self.pred],feed_dict={self.inputs:
                                             test_x, self.targets: test_y})
-                        pred = np.argmax(outputs,axis=2)
                         act = np.argmax(test_y,axis=1)
                         val_acc = np.mean(np.argmax(test_y,axis=1)==pred)*100
                         if val_acc > best_acc:
@@ -158,6 +158,14 @@ class feedforward(object):
     # Plot training losses from most recent session
     def plot(self):
         plt.plot(self.losses)
+
+    def predict(self,x):
+        self.session = tf.Session()
+        with self.session as sess:
+            self.saver.restore(sess,tf.train.latest_checkpoint('model/'))
+            pred = sess.run([self.pred],feed_dict={self.inputs: x})
+            return pred
+
 
 
 
