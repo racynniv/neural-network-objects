@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import time
+from scipy.ndimage.interpolation import rotate
 
 """
 This class is a generator with data augmentation techniques built in (for use 

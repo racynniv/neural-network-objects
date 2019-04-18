@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import time
-from sklearn.model_selection import train_test_split
 from augment import Generator
 import matplotlib.pyplot as plt
 
@@ -14,18 +13,18 @@ keep probability values for each hidden layer. These two lists must be of the
 same length. Finally, there is the activation function, which stays consistent
 across all layers (except for the output layer). The network takes data with 
 input_size number of features, puts it through hidden layers with sizes denoted
-by hidden_layer_size, and outputs output_size number of outputs (>1 for classes
-and 1 for regression). It takes batches of any size but must be an NxM matrix 
-input. Using the train function, users can train on presplit data and can alter
-the parameters of batch size, number of epochs, translation, flips, rotations,
-and added noise. This trained network is automatically saved under the given
-name and can be loaded for further training.
+by hidden_layer_size, and outputs output_size number of outputs.
+It takes batches of any size but must be an NxM matrix input. Using the train 
+function, users can train on presplit data and can alter the parameters of 
+batch size, number of epochs, translation, flips, rotations, and added noise. 
+This trained network is automatically saved under the given name and can be 
+loaded for further training.
 """
 
 class feedforward(object):
     # Initializes the network for training/prediction
     def __init__(self, input_size, output_size, hidden_layer_size=[64], 
-                 learning_rate=0.001, lambda_l2_reg=.001, 
+                 learning_rate=0.001, lambda_l2_reg=.001, c_r='classification',
                  train_keep_prob=[.7], activation=tf.nn.relu):
         # Ensures that the hidden layers have corresponding keep probs
         assert(len(hidden_layer_size) == len(train_keep_prob))
@@ -36,6 +35,7 @@ class feedforward(object):
         self.hidden_layer_size = hidden_layer_size
         self.learning_rate = learning_rate
         self.lambda_l2_reg = lambda_l2_reg
+        self.c_r = c_r
         self.train_keep_prob = train_keep_prob
         self.activation = activation
 
@@ -73,12 +73,14 @@ class feedforward(object):
     # Defines loss based on if the output is a regression or classification. If 
     # classification, use softmax, if regression, use mean squared error
     def __loss(self):
-        if self.output_size == 1:
+        if self.c_r == 'regression':
             self.loss = tf.losses.mean_squared_error(self.targets,self.output)
-        else:
+        elif self.c_r == 'classification':
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
                                        labels=self.targets,logits=self.output))
             self.pred = tf.argmax(input=self.output,axis=1)
+        else:
+            raise ValueError('Not regresson or classification')
 
     # Minimizes the loss using an Adam optimizer
     def __optimizer(self):
@@ -159,10 +161,17 @@ class feedforward(object):
     def plot(self):
         plt.plot(self.losses)
 
-    def predict(self,x):
+    def predict(self,x,pre_trained_model=None):
         self.session = tf.Session()
         with self.session as sess:
-            self.saver.restore(sess,tf.train.latest_checkpoint('model/'))
+            if pre_trained_model != None:
+                try:
+                    print("Loading model from: {}".format(pre_trained_model))
+                    self.saver.restore(sess,'model/{}'.format(pre_trained_model))
+                except Exception:
+                    raise ValueError("Failed Loading Model")
+            else:
+                self.saver.restore(sess,tf.train.latest_checkpoint('model/'))
             pred = sess.run([self.pred],feed_dict={self.inputs: x})
             return pred
 
